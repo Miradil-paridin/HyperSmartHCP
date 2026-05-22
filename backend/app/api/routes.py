@@ -5,7 +5,7 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from app.core.config import get_settings
 from app.models.schemas import ActionRequest, ActionResponse
-from app.services.home_assistant import HomeAssistantClient, state_to_device
+from app.services.home_assistant import HomeAssistantClient, build_device_categories, states_to_devices
 from app.services.mock_data import (
     execute_action,
     get_automations,
@@ -34,6 +34,23 @@ async def health() -> dict[str, Any]:
 
 @router.get("/overview")
 async def overview() -> dict[str, Any]:
+    settings = get_settings()
+    if settings.use_home_assistant:
+        client = HomeAssistantClient(settings.home_assistant_url or "", settings.home_assistant_token or "")
+        device_items = states_to_devices(await client.get_states())
+        total = len(device_items)
+        online = sum(1 for device in device_items if device.status == "online")
+        offline = sum(1 for device in device_items if device.status == "offline")
+        warning = sum(1 for device in device_items if device.status == "warning")
+        health = round(((online / total) * 100) - warning * 3, 1) if total else 0
+        return {
+            "total_devices": total,
+            "online_devices": online,
+            "offline_devices": offline,
+            "today_events": 0,
+            "home_health": max(0, min(100, health)),
+            "updated_at": None,
+        }
     return get_overview()
 
 
@@ -43,7 +60,11 @@ async def devices() -> dict[str, Any]:
     if settings.use_home_assistant:
         client = HomeAssistantClient(settings.home_assistant_url or "", settings.home_assistant_token or "")
         states = await client.get_states()
-        return {"categories": get_devices()["categories"], "devices": [state_to_device(item) for item in states]}
+        device_items = states_to_devices(states)
+        return {
+            "categories": [category.model_dump() for category in build_device_categories(device_items)],
+            "devices": [device.model_dump() for device in device_items],
+        }
     return get_devices()
 
 

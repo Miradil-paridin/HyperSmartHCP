@@ -14,7 +14,7 @@
         </div>
 
         <aside class="grid min-h-0 grid-rows-[220px_1fr_250px] gap-4">
-          <QuickActions @executed="handleActionExecuted" />
+          <QuickActions :readonly="apiMode === 'home_assistant'" @executed="handleActionExecuted" />
           <EventLog :events="events" />
           <AutomationPanel :rules="automations" />
         </aside>
@@ -130,7 +130,11 @@ function connectRealtime() {
 }
 
 onMounted(() => {
-  void loadInitialData().then(connectRealtime);
+  void loadInitialData().then(() => {
+    if (apiMode.value === "mock") {
+      connectRealtime();
+    }
+  });
 });
 
 onBeforeUnmount(() => {

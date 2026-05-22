@@ -20,6 +20,9 @@ export interface Device {
   room: string;
   status: "online" | "offline" | "warning" | "unknown";
   state: string;
+  domain?: string;
+  updated_at?: string | null;
+  source?: "mock" | "home_assistant";
 }
 
 export interface TopologyNode {

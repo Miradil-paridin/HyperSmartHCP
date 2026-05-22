@@ -13,9 +13,9 @@ class Settings(BaseSettings):
     )
     home_assistant_url: str | None = None
     home_assistant_token: str | None = None
-    mock_mode: bool = True
+    mock_mode: bool = False
 
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(env_file=(".env", "../.env"), extra="ignore")
 
     @property
     def cors_origin_list(self) -> list[str]:
