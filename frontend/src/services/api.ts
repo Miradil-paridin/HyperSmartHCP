@@ -18,7 +18,14 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   });
 
   if (!response.ok) {
-    throw new Error(`Request failed: ${response.status} ${response.statusText}`);
+    let detail = `${response.status} ${response.statusText}`;
+    try {
+      const body = (await response.json()) as { detail?: string };
+      detail = body.detail ?? detail;
+    } catch {
+      // Keep the HTTP status text when the server does not return JSON.
+    }
+    throw new Error(detail);
   }
 
   return response.json() as Promise<T>;

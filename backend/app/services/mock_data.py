@@ -5,6 +5,8 @@ import random
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
+from app.services.event_log import get_action_events
+
 
 DEVICE_CATEGORIES = [
     {"id": "all", "label": "全部设备", "count": 18},
@@ -47,12 +49,12 @@ AUTOMATIONS = [
 ]
 
 ACTION_MESSAGES = {
-    "home_mode": "已模拟执行回家模式：灯光与空调切换到舒适状态",
-    "away_mode": "已模拟执行离家模式：关闭灯光并布防提醒",
-    "sleep_mode": "已模拟执行睡眠模式：降低灯光与空调强度",
-    "movie_mode": "已模拟执行观影模式：调暗灯光并关闭窗帘",
-    "all_lights_off": "已模拟关闭全屋灯光",
-    "vacuum_start": "已模拟启动扫地机器人",
+    "all_lights_on": "已模拟打开全部灯光",
+    "all_lights_off": "已模拟关闭全部灯光",
+    "all_fans_off": "已模拟关闭全部风扇",
+    "climate_off": "已模拟关闭全部空调",
+    "curtains_open": "已模拟打开全部窗帘",
+    "curtains_close": "已模拟关闭全部窗帘",
 }
 
 
@@ -129,6 +131,7 @@ def get_metrics(points: int = 24) -> dict[str, Any]:
 
 
 def get_recent_events(limit: int = 12) -> list[dict[str, Any]]:
+    action_events = get_action_events()
     templates = [
         ("DEVICE", "客厅主灯状态变更为开启"),
         ("INFO", "Home Assistant mock 数据同步完成"),
@@ -140,7 +143,7 @@ def get_recent_events(limit: int = 12) -> list[dict[str, Any]]:
         ("DEVICE", "扫地机器人回到充电座"),
     ]
     current = datetime.now()
-    return [
+    mock_events = [
         {
             "id": f"event-{index}",
             "type": event_type,
@@ -149,6 +152,7 @@ def get_recent_events(limit: int = 12) -> list[dict[str, Any]]:
         }
         for index, (event_type, message) in enumerate(templates[:limit])
     ]
+    return (action_events + mock_events)[:limit]
 
 
 def get_automations() -> list[dict[str, Any]]:

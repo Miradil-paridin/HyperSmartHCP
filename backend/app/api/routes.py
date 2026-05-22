@@ -1,10 +1,12 @@
 import asyncio
 from typing import Any
 
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
 
 from app.core.config import get_settings
 from app.models.schemas import ActionRequest, ActionResponse
+from app.services.action_safety import resolve_service_call, validate_service_call
+from app.services.event_log import record_event
 from app.services.home_assistant import HomeAssistantClient, build_device_categories, states_to_devices
 from app.services.mock_data import (
     execute_action,
@@ -90,7 +92,44 @@ async def automations() -> list[dict[str, Any]]:
 
 @router.post("/actions/execute", response_model=ActionResponse)
 async def actions(request: ActionRequest) -> dict[str, Any]:
-    return execute_action(request.action_id)
+    try:
+        call = resolve_service_call(
+            action_id=request.action_id,
+            entity_id=request.entity_id,
+            service=request.service,
+            service_data=request.service_data,
+            payload=request.payload,
+        )
+        validate_service_call(call)
+    except PermissionError as error:
+        message = str(error)
+        record_event("WARN", f"已拒绝控制请求：{message}")
+        raise HTTPException(status_code=403, detail=message) from error
+    except ValueError as error:
+        message = str(error)
+        record_event("WARN", f"无效控制请求：{message}")
+        raise HTTPException(status_code=400, detail=message) from error
+
+    settings = get_settings()
+    if settings.use_home_assistant:
+        client = HomeAssistantClient(settings.home_assistant_url or "", settings.home_assistant_token or "")
+        await client.call_service(call.domain, call.service, call.service_data)
+        message = f"已执行 {call.label}：{call.domain}.{call.service}"
+    else:
+        if request.action_id:
+            mock_result = execute_action(request.action_id)
+            message = mock_result["message"]
+        else:
+            message = f"已模拟执行 {call.entity_id}：{call.domain}.{call.service}"
+
+    record_event("AUTO", message)
+    return {
+        "success": True,
+        "action_id": call.action_id,
+        "entity_id": call.entity_id,
+        "service": f"{call.domain}.{call.service}",
+        "message": message,
+    }
 
 
 @ws_router.websocket("/ws/realtime")

@@ -1,6 +1,6 @@
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 DeviceCategoryId = Literal[
@@ -37,11 +37,24 @@ class DeviceCategory(BaseModel):
 
 
 class ActionRequest(BaseModel):
-    action_id: str = Field(..., min_length=1)
+    action_id: str | None = Field(default=None, min_length=1)
+    entity_id: str | None = Field(default=None, min_length=1)
+    service: str | None = Field(default=None, min_length=1)
+    service_data: dict | None = None
     payload: dict | None = None
+
+    @model_validator(mode="after")
+    def validate_action_shape(self) -> "ActionRequest":
+        if self.action_id:
+            return self
+        if self.entity_id and self.service:
+            return self
+        raise ValueError("action_id or entity_id + service is required")
 
 
 class ActionResponse(BaseModel):
     success: bool
-    action_id: str
+    action_id: str | None = None
+    entity_id: str | None = None
+    service: str | None = None
     message: str

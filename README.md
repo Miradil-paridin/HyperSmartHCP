@@ -1,6 +1,6 @@
 # HyperLink Home v0.1
 
-HyperLink Home 是一个运行在局域网内的智能家居可视化中控台。v0.1 默认支持 mock 数据演示，也支持通过 Home Assistant REST API 做只读实体接入。项目不会直接连接米家云，不包含米家账号密码登录逻辑，也不会在第一阶段开放真实设备控制按钮。
+HyperLink Home 是一个运行在局域网内的智能家居可视化中控台。v0.1 默认支持 mock 数据演示，也支持通过 Home Assistant REST API 接入实体状态和低风险设备控制。项目不会直接连接米家云，不包含米家账号密码登录逻辑，高风险设备默认禁止控制。
 
 ## 项目结构
 
@@ -86,9 +86,9 @@ docker compose down
 - `POST /api/actions/execute`
 - `WebSocket /ws/realtime`
 
-## Home Assistant 只读接入
+## Home Assistant 接入
 
-当前阶段只读取 Home Assistant 实体列表和状态，并将实体转换成 HyperLink Home 的 `Device` 模型。前端在 Home Assistant 模式下会显示实体列表和状态，快捷操作处于只读禁用状态，不会发起真实控制。
+当前阶段读取 Home Assistant 实体列表和状态，并将实体转换成 HyperLink Home 的 `Device` 模型。控制能力只开放低风险 domain，且所有前端操作必须经过本项目后端 `/api/actions/execute`，前端不会直接访问 Home Assistant。
 
 ### 创建长期访问令牌
 
@@ -140,4 +140,46 @@ HOME_ASSISTANT_TOKEN=replace_with_long_lived_access_token
 - `alarm_control_panel`、`camera`：安防设备
 - 其他实体：其他设备
 
-后续如果要开放真实控制，请继续通过后端 API 做白名单、二次确认和高风险设备保护，不要让前端直接访问 Home Assistant。
+### 安全控制策略
+
+控制入口只有：
+
+- `POST /api/actions/execute`
+
+请求可以使用快捷动作：
+
+```json
+{
+  "action_id": "all_lights_off"
+}
+```
+
+也可以使用实体服务调用：
+
+```json
+{
+  "entity_id": "light.living_room",
+  "service": "turn_off",
+  "service_data": {}
+}
+```
+
+后端安全限制：
+
+- 允许控制：`light`、`switch`、`fan`、`climate`、`cover`
+- 禁止控制：`lock`、`camera`、`alarm_control_panel`、`siren`
+- 其他未列入允许清单的 domain 默认拒绝
+- 高风险或未开放 domain 会返回 `403`
+- 所有成功、拒绝和无效控制请求都会写入事件日志
+- 真实控制只在配置 Home Assistant 且 `MOCK_MODE=false` 时执行；否则只记录 mock 执行结果
+
+第一版内置的快捷动作只映射到低风险 domain：
+
+- `all_lights_on`：`light.turn_on`
+- `all_lights_off`：`light.turn_off`
+- `all_fans_off`：`fan.turn_off`
+- `climate_off`：`climate.turn_off`
+- `curtains_open`：`cover.open_cover`
+- `curtains_close`：`cover.close_cover`
+
+后续如果要开放更多真实控制，请继续通过后端 API 做白名单、二次确认和高风险设备保护，不要让前端直接访问 Home Assistant。

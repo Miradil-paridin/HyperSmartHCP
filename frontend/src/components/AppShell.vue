@@ -14,7 +14,7 @@
         </div>
 
         <aside class="grid min-h-0 grid-rows-[220px_1fr_250px] gap-4">
-          <QuickActions :readonly="apiMode === 'home_assistant'" @executed="handleActionExecuted" />
+          <QuickActions @executed="handleActionExecuted" />
           <EventLog :events="events" />
           <AutomationPanel :rules="automations" />
         </aside>
