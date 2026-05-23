@@ -21,6 +21,7 @@ export interface Device {
   status: "online" | "offline" | "warning" | "unknown";
   state: string;
   domain?: string;
+  controllable?: boolean;
   updated_at?: string | null;
   source?: "mock" | "home_assistant";
 }

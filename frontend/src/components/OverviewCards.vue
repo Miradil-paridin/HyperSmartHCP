@@ -1,73 +1,70 @@
 <template>
-  <section class="grid grid-cols-5 gap-4">
-    <article v-for="card in cards" :key="card.label" class="glass-panel tech-border rounded-lg px-5 py-4">
-      <div class="flex items-center justify-between">
-        <span class="text-sm text-slate-400">{{ card.label }}</span>
-        <component :is="card.icon" class="h-5 w-5" :class="card.color" />
-      </div>
-      <div class="mt-3 flex items-end gap-2">
-        <strong class="text-3xl font-black text-white">{{ card.value }}</strong>
-        <span class="pb-1 text-xs text-slate-500">{{ card.unit }}</span>
-      </div>
-      <div class="mt-3 h-1 overflow-hidden rounded-full bg-white/10">
-        <div class="h-full rounded-full" :class="card.bar" :style="{ width: card.progress }" />
-      </div>
-    </article>
+  <section class="grid min-h-0 grid-cols-4 gap-4">
+    <KpiCard
+      v-for="card in cards"
+      :key="card.label"
+      :label="card.label"
+      :value="card.value"
+      :unit="card.unit"
+      :caption="card.caption"
+      :icon="card.icon"
+      :accent="card.accent"
+      :progress="card.progress"
+    />
   </section>
 </template>
 
 <script setup lang="ts">
 import { computed } from "vue";
-import { Activity, Cpu, HeartPulse, RadioTower, ShieldAlert } from "@lucide/vue";
+import { Cpu, HeartPulse, RadioTower, ShieldAlert } from "@lucide/vue";
+import KpiCard from "./KpiCard.vue";
 import type { Overview } from "../types/api";
 
 const props = defineProps<{ overview: Overview }>();
 
+function percent(value: number, total: number) {
+  return total > 0 ? Math.round((value / total) * 100) : 0;
+}
+
+const onlineRate = computed(() => percent(props.overview.online_devices, props.overview.total_devices));
+const abnormalCount = computed(() => props.overview.offline_devices);
+
 const cards = computed(() => [
   {
-    label: "总设备数",
+    label: "接入设备 / 实体",
     value: props.overview.total_devices,
-    unit: "devices",
+    unit: "个",
+    caption: "当前纳入 HyperLink Home 总览的 Home Assistant 实体。",
     icon: Cpu,
-    color: "text-cyan",
-    bar: "bg-cyan",
-    progress: "100%",
+    accent: "#39c8ff",
+    progress: 100,
   },
   {
-    label: "在线设备",
-    value: props.overview.online_devices,
-    unit: "online",
+    label: "在线率",
+    value: onlineRate.value,
+    unit: "%",
+    caption: `基于 Home Assistant 实体状态统计：${props.overview.online_devices} 个可用。`,
     icon: RadioTower,
-    color: "text-emerald-300",
-    bar: "bg-emerald-300",
-    progress: `${(props.overview.online_devices / props.overview.total_devices) * 100}%`,
+    accent: "#34e0c7",
+    progress: onlineRate.value,
   },
   {
-    label: "离线设备",
-    value: props.overview.offline_devices,
-    unit: "offline",
+    label: "异常 / 离线",
+    value: abnormalCount.value,
+    unit: "个",
+    caption: "包含 unavailable、unknown 与连接中断实体，建议优先处理常用设备。",
     icon: ShieldAlert,
-    color: "text-rose-300",
-    bar: "bg-rose-300",
-    progress: `${(props.overview.offline_devices / props.overview.total_devices) * 100}%`,
+    accent: "#ff5c88",
+    progress: Math.min(100, percent(abnormalCount.value, props.overview.total_devices)),
   },
   {
-    label: "今日事件",
-    value: props.overview.today_events,
-    unit: "events",
-    icon: Activity,
-    color: "text-amber-300",
-    bar: "bg-amber-300",
-    progress: "78%",
-  },
-  {
-    label: "家庭健康度",
+    label: "系统健康度",
     value: props.overview.home_health,
     unit: "%",
+    caption: "综合色在线率、异常数量与后端服务稳定性的总览评分。",
     icon: HeartPulse,
-    color: "text-violet",
-    bar: "bg-violet",
-    progress: `${props.overview.home_health}%`,
+    accent: "#8b6dff",
+    progress: props.overview.home_health,
   },
 ]);
 </script>

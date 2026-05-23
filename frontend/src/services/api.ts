@@ -44,4 +44,9 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ action_id: actionId }),
     }),
+  executeDeviceAction: (entityId: string, service: string, serviceData?: Record<string, unknown>) =>
+    request<{ success: boolean; entity_id: string; service: string; message: string }>("/api/actions/execute", {
+      method: "POST",
+      body: JSON.stringify({ entity_id: entityId, service, service_data: serviceData }),
+    }),
 };

@@ -5,9 +5,9 @@ from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
 
 from app.core.config import get_settings
 from app.models.schemas import ActionRequest, ActionResponse
-from app.services.action_safety import resolve_service_call, validate_service_call
+from app.services.action_safety import expand_action_calls, resolve_service_call, validate_service_call
 from app.services.event_log import record_event
-from app.services.home_assistant import HomeAssistantClient, build_device_categories, states_to_devices
+from app.services.home_assistant import HomeAssistantClient, build_device_categories, build_topology_from_devices, states_to_devices
 from app.services.mock_data import (
     execute_action,
     get_automations,
@@ -72,6 +72,11 @@ async def devices() -> dict[str, Any]:
 
 @router.get("/topology")
 async def topology() -> dict[str, Any]:
+    settings = get_settings()
+    if settings.use_home_assistant:
+        client = HomeAssistantClient(settings.home_assistant_url or "", settings.home_assistant_token or "")
+        device_items = states_to_devices(await client.get_states())
+        return build_topology_from_devices(device_items)
     return get_topology()
 
 
@@ -113,8 +118,25 @@ async def actions(request: ActionRequest) -> dict[str, Any]:
     settings = get_settings()
     if settings.use_home_assistant:
         client = HomeAssistantClient(settings.home_assistant_url or "", settings.home_assistant_token or "")
-        await client.call_service(call.domain, call.service, call.service_data)
-        message = f"已执行 {call.label}：{call.domain}.{call.service}"
+        calls = [call]
+        if request.action_id:
+            devices = states_to_devices(await client.get_states())
+            calls = expand_action_calls(request.action_id, devices)
+
+        for current_call in calls:
+            validate_service_call(current_call)
+            await client.call_service(current_call.domain, current_call.service, current_call.service_data)
+
+        if request.action_id:
+            target_count = sum(
+                len(current_call.service_data.get("entity_id", []))
+                if isinstance(current_call.service_data.get("entity_id"), list)
+                else 1
+                for current_call in calls
+            )
+            message = f"已执行 {call.label}，命中 {target_count} 个设备"
+        else:
+            message = f"已执行 {call.entity_id}：{call.domain}.{call.service}"
     else:
         if request.action_id:
             mock_result = execute_action(request.action_id)
