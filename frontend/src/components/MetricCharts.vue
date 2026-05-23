@@ -46,10 +46,10 @@ function buildFillPath(values: number[]) {
 }
 
 const cards = computed(() => [
-  card("temperature", "温度", `${lastValue(props.metrics.series.temperature)} C`, "18 - 32 C", props.metrics.series.temperature, "#4dc8ff", "#376dff", "border-sky-400/24 bg-sky-400/10 text-sky-200"),
-  card("humidity", "湿度", `${lastValue(props.metrics.series.humidity)} %`, "35 - 75%", props.metrics.series.humidity, "#34e0c7", "#47c3ff", "border-teal-400/24 bg-teal-400/10 text-teal-200"),
-  card("illuminance", "光照", `${lastValue(props.metrics.series.illuminance)} lux`, "0 - 1000 lux", props.metrics.series.illuminance, "#a86cff", "#ff6abf", "border-violet-400/24 bg-violet-400/10 text-violet-200"),
-  card("power", "功率", `${lastValue(props.metrics.series.power)} W`, "0 - 3000 W", props.metrics.series.power, "#ffb347", "#ff7a3c", "border-orange-400/24 bg-orange-400/10 text-orange-200"),
+  card("temperature", "温度", `${lastValue(props.metrics.series.temperature)} C`, "18 - 32 C", props.metrics.series.temperature, "#4dc8ff", "#376dff", "border-sky-400/24 bg-sky-400/10 text-sky-200", "C"),
+  card("humidity", "湿度", `${lastValue(props.metrics.series.humidity)} %`, "35 - 75%", props.metrics.series.humidity, "#34e0c7", "#47c3ff", "border-teal-400/24 bg-teal-400/10 text-teal-200", "%"),
+  card("illuminance", "光照", `${lastValue(props.metrics.series.illuminance)} lux`, "0 - 1000 lux", props.metrics.series.illuminance, "#a86cff", "#ff6abf", "border-violet-400/24 bg-violet-400/10 text-violet-200", "lux"),
+  card("power", "功率", `${lastValue(props.metrics.series.power)} W`, "0 - 3000 W", props.metrics.series.power, "#ffb347", "#ff7a3c", "border-orange-400/24 bg-orange-400/10 text-orange-200", "W"),
 ]);
 
 function card(
@@ -61,7 +61,9 @@ function card(
   lineStart: string,
   lineEnd: string,
   pillClass: string,
+  unit: string,
 ) {
+  const change = buildChange(series, unit);
   return {
     id,
     label,
@@ -75,6 +77,17 @@ function card(
     fillEnd: "#071124",
     linePath: buildLinePath(series),
     fillPath: buildFillPath(series),
+    changeLabel: change.label,
+    changeClass: change.className,
   };
+}
+
+function buildChange(values: number[], unit: string) {
+  if (values.length < 2) return { label: "暂无变化", className: "text-slate-500" };
+  const diff = values[values.length - 1] - values[values.length - 2];
+  if (Math.abs(diff) < 0.01) return { label: "持平", className: "text-slate-500" };
+  const prefix = diff > 0 ? "+" : "";
+  const className = diff > 0 ? "text-emerald-200" : "text-rose-200";
+  return { label: `${prefix}${Number(diff.toFixed(1))} ${unit}`, className };
 }
 </script>
