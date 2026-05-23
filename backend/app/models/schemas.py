@@ -26,6 +26,7 @@ class Device(BaseModel):
     status: DeviceStatus
     state: str
     domain: str
+    controllable: bool = False
     updated_at: str | None = None
     source: Literal["mock", "home_assistant"] = "mock"
 
